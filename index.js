@@ -23,10 +23,6 @@ app.listen(port);
 console.log('app running at port toilet server: ' + port);
 
 
-const path = require('path');
-const indexPath = path.join(__dirname, 'src', 'index.js');
-const indexModule = require(indexPath);
-
 
 
 

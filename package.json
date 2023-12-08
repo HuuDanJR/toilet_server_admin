@@ -9,7 +9,7 @@
   "keywords": [],
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "nodemon app.js"
+    "start": "nodemon index.js"
   },
   "dependencies": {
     "body-parser": "^1.20.0",
