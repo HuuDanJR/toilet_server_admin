@@ -22,6 +22,14 @@ var port = process.env.PORT || 8080;
 app.listen(port);
 console.log('app running at port toilet server: ' + port);
 
+
+const path = require('path');
+const indexPath = path.join(__dirname, 'src', 'index.js');
+const indexModule = require(indexPath);
+
+
+
+
 //connect mongoDB
 var config = require('./config')
 config.connectDB()
