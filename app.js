@@ -63,7 +63,7 @@ app.post('/create_feedback', async (req, res) => {
               console.log(err)
             }
           });
-          res.send({ "status": true, "message": 'created feedback successfully', "data": feedback });
+          res.send({ "status": true, "message": 'Created feedback, Thank You! ', "data": feedback });
         }
       }
     });
