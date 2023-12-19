@@ -137,6 +137,7 @@ app.put('/update_feedback', async (req, res) => {
 app.get('/list_feedback', async (req, res) => {
   feedbackModel.find({})
     .sort({ createdAt: -1 }) // Sort by createdAt in descending order
+    .limit(15) // Limit the results to 15 records
     .exec(function (err, data) {
       if (err) {
         console.log(err);
