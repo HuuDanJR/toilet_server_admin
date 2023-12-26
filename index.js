@@ -6,6 +6,7 @@ const mongoose = require('mongoose');
 var cors = require('cors');
 var router = express.Router();
 app.use(express.json());
+var crypto = require('crypto')
 const fs = require('fs');
 const bodyparser = require('body-parser');
 
@@ -18,11 +19,6 @@ app.use(cors({
   origin: '*'
 }));
 const axios = require('axios');
-
-
-
-
-
 
 
 app.use('/', router);
@@ -302,7 +298,7 @@ app.put('/update_feedback', async (req, res) => {
 app.get('/list_feedback', async (req, res) => {
   feedbackModel.find({})
     .sort({ createdAt: -1 }) // Sort by createdAt in descending order
-    .limit(25) // Limit the results to 15 records
+    .limit(15) // Limit the results to 15 records
     .exec(function (err, data) {
       if (err) {
         console.log(err);
