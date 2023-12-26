@@ -5,38 +5,206 @@ var path = require('path')
 const mongoose = require('mongoose');
 var cors = require('cors');
 var router = express.Router();
-var crypto = require('crypto')
 app.use(express.json());
 const fs = require('fs');
+const bodyparser = require('body-parser');
+
 app.use(express.urlencoded({ extended: true }));
+app.use(bodyparser.json())
 const logStream = fs.createWriteStream('log.txt', { flags: 'a' });
 app.use(morgan('tiny'));
 app.use(morgan(':method :url :status :response-time ms - :res[content-length]', { stream: logStream }));
 app.use(cors({
   origin: '*'
 }));
+const axios = require('axios');
+
+
+
+
+
+
 
 app.use('/', router);
-
 var port = process.env.PORT || 8080;
 app.listen(port);
 console.log('app running at port toilet server: ' + port);
-
-
-
-
 
 //connect mongoDB
 var config = require('./config')
 config.connectDB()
 
-
+//APIs home
 app.get('/', function (req, res) {
   res.end('index page - toilet server');
 })
 
+//WEB RESOURCE
 app.use(express.static('web/web'));
 app.use(express.static('web/web/assets'));
+
+
+//FIREBASE 
+var admin = require('./firebase_config');
+const notification_options = {
+  priority: "high",
+  timeToLive: 60 * 60 * 24
+};
+const { getMessaging } =require("firebase-admin/messaging");
+const serverKey = 'AAAA4zxFWx4:APA91bHtA8m3hXdBsBGHSkHnpzI4aFSFmplU_PP3MCFPs24NFeP-aFaED0cxtTvWZ6NyGW1K6qYlIpNEo_8nrA4y693wFCYM86zQ4EiNzPvwo0C46BJSpGsJZDlrMVMBLw6Wh_CiQ1T7'; // Replace with your FCM server key
+const { formatDatetime, getCurrentDatetime } = require('./datetimeUtils');
+
+
+app.post('/firebase/notification', (req, res) => {
+  const registrationToken = req.body.registrationToken;
+  const message = req.body.message;
+  const title = req.body.title || 'Default Title'; // Default title if not provided
+  const body = req.body.body || 'Default Body'; // Default body if not provided
+  const data = req.body.data || {}; // Default empty object for data
+  const datetime =  getCurrentDatetime(); // Format or use current datetime if not provided
+  const options = notification_options;
+  const star = req.body.star;
+  const feedback = req.body.feedback;
+
+  const payload = {
+    data: {
+      message: message,
+      datetime: datetime, // Include datetime in data
+      star:star,
+      feedback:JSON.stringify(feedback),
+    },
+    notification: {
+      title: title,
+      body: body,
+    },
+  };
+
+  // Check if the payload has either "data" or "notification" property
+  if (!payload.data && !payload.notification) {
+    return res.status(400).send("Invalid payload. Must have 'data' or 'notification'.");
+  }
+
+  admin.admin_role.messaging().sendToDevice(registrationToken, payload, options)
+    .then(response => {
+      console.log('Notification sent successfully:', response);
+      res.status(200).send("Notification sent successfully");
+    })
+    .catch(error => {
+      console.error('Error sending notification:', error);
+      res.status(500).send("Error sending notification");
+    });
+});
+
+
+
+
+//NOT WORK
+app.post('/firebase/notification2', async (req, res) => {
+  const deviceToken = req.body.registrationToken;
+  const message = req.body.message;
+
+  const notificationData = {
+    to: deviceToken,
+    notification: {
+      title: 'Notification Title',
+      body: 'Notification Body',
+    },
+    data: {
+      message: message,
+    },
+  };
+
+  try {
+    const response = await axios.post('https://fcm.googleapis.com/fcm/send', notificationData, {
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `key=${serverKey}`,
+      },
+    });
+
+    console.log('Notification sent successfully:', response.data);
+    res.status(200).json({ success: true, message: 'Notification sent successfully' });
+  } catch (error) {
+    console.error('Error sending notification:', error.message);
+    res.status(500).json({ success: false, message: 'Error sending notification' });
+  }
+});
+
+
+
+
+
+
+
+
+
+
+
+
+
+app.post("/send", function (req, res) {
+  const receivedToken = req.body.fcmToken;
+  
+  const message = {
+    notification: {
+      title: "Notif",
+      body: 'This is a Test Notification'
+    },
+    token: "YOUR FCM TOKEN HERE",
+  };
+  
+  getMessaging()
+    .send(message)
+    .then((response) => {
+      res.status(200).json({
+        message: "Successfully sent message",
+        token: receivedToken,
+      });
+      console.log("Successfully sent message:", response);
+    })
+    .catch((error) => {
+      res.status(400);
+      res.send(error);
+      console.log("Error sending message:", error);
+    });
+});
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 const feedbackModel = require('./model/feedback')
@@ -75,8 +243,6 @@ app.post('/create_feedback', async (req, res) => {
     res.status(500).send({ message: `error ${message} ${error}` });
   }
 });
-
-
 
 app.put('/update_feedback', async (req, res) => {
   try {
@@ -132,7 +298,6 @@ app.put('/update_feedback', async (req, res) => {
     res.status(500).send({ message: `Error: ${error}` });
   }
 });
-
 
 app.get('/list_feedback', async (req, res) => {
   feedbackModel.find({})
