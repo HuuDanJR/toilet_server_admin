@@ -49,6 +49,66 @@ const notification_options = {
 const { getMessaging } =require("firebase-admin/messaging");
 const serverKey = 'AAAA4zxFWx4:APA91bHtA8m3hXdBsBGHSkHnpzI4aFSFmplU_PP3MCFPs24NFeP-aFaED0cxtTvWZ6NyGW1K6qYlIpNEo_8nrA4y693wFCYM86zQ4EiNzPvwo0C46BJSpGsJZDlrMVMBLw6Wh_CiQ1T7'; // Replace with your FCM server key
 const { formatDatetime, getCurrentDatetime } = require('./datetimeUtils');
+const tokenModel = require('./model/token')
+
+
+
+
+
+app.post('/firebase/notification/all', async (req, res) => {
+  try {
+    const tokens = await tokenModel.find({}).exec();
+
+    if (!tokens || tokens.length === 0) {
+      return res.send({ "status": false, "message": "No tokens found" });
+    }
+
+    const message = req.body.message;
+    const title = req.body.title || 'Default Title';
+    const body = req.body.body || 'Default Body';
+    const data = req.body.data || {};
+    const datetime = getCurrentDatetime();
+    const options = notification_options;
+    const star = req.body.star;
+    const feedback = req.body.feedback;
+
+    const payload = {
+      data: {
+        message: message,
+        datetime: datetime,
+        star: star,
+        feedback: JSON.stringify(feedback),
+      },
+      notification: {
+        title: title,
+        body: body,
+      },
+    };
+
+    if (!payload.data && !payload.notification) {
+      return res.status(400).send("Invalid payload. Must have 'data' or 'notification'.");
+    }
+
+    const sendNotifications = tokens.map(async (token) => {
+      try {
+        await admin.admin_role.messaging().sendToDevice(token.value, payload, options);
+        console.log(`Notification sent successfully to ${token.value}`);
+      } catch (error) {
+        console.error(`Error sending notification to ${token.value}:`, error);
+      }
+    });
+
+    await Promise.all(sendNotifications);
+
+    res.status(200).send("Notifications sent successfully to all tokens");
+  } catch (error) {
+    console.error('Error fetching tokens:', error);
+    res.status(500).send("Error fetching tokens");
+  }
+});
+
+
+
 
 
 app.post('/firebase/notification', (req, res) => {
@@ -421,3 +481,22 @@ function replaceEmptyStrings(arr, replacement) {
     return item;
   });
 }
+
+
+app.get('/list_token', async (req, res) => {
+  tokenModel.find({})
+    .sort({ createdAt: -1 }) // Sort by createdAt in descending order
+    .limit(15) // Limit the results to 15 records
+    .exec(function (err, data) {
+      if (err) {
+        console.log(err);
+        res.status(500).send({ "status": false, "message": "An error occurred" });
+      } else {
+        if (data == null || data.length == 0) {
+          res.send({ "status": false, "message": "find list tokens fail", "totalResult": null, "data": data });
+        } else {
+          res.send({ "status": true, "message": "find list tokens success", "totalResult": data.length, "data": data });
+        }
+      }
+    });
+});
