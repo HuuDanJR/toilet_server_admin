@@ -52,9 +52,6 @@ const { formatDatetime, getCurrentDatetime } = require('./datetimeUtils');
 const tokenModel = require('./model/token')
 
 
-
-
-
 app.post('/firebase/notification/all', async (req, res) => {
   try {
     const tokens = await tokenModel.find({}).exec();
@@ -82,6 +79,7 @@ app.post('/firebase/notification/all', async (req, res) => {
       notification: {
         title: title,
         body: body,
+        sound: "iphone_notification.aiff"
       },
     };
 
@@ -499,4 +497,30 @@ app.get('/list_token', async (req, res) => {
         }
       }
     });
+});
+
+
+// POST API to add a new token
+app.post('/add_token', async (req, res) => {
+  const { value, name } = req.body;
+
+  if (!value || !name) {
+    return res.status(400).json({ "status": false, "message": "Both 'value' and 'name' are required fields." });
+  }
+
+  // Check for duplicate token
+  const existingToken = await tokenModel.findOne({ value });
+  if (existingToken) {
+    return res.status(409).json({ "status": false, "message": "Token with the provided 'value' already exists." });
+  }
+
+  const newToken = new tokenModel({ value, name });
+
+  try {
+    const savedToken = await newToken.save();
+    res.status(201).json({ "status": true, "message": "Token added successfully", "data": savedToken });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ "status": false, "message": "Failed to add token", "error": error.message });
+  }
 });

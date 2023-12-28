@@ -4266,3 +4266,7 @@ POST /firebase/notification/all 200 78.057 ms - 45
 POST /firebase/notification/all 200 61.543 ms - 45
 POST /firebase/notification/all 200 846.776 ms - 45
 POST /firebase/notification/all 200 538.710 ms - 45
+POST /add_token 201 1381.756 ms - 138
+POST /add_token 409 64.406 ms - 76
+POST /add_token 409 62.280 ms - 76
+POST /add_token 409 63.242 ms - 76
