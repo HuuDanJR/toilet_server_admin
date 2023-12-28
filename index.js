@@ -50,7 +50,7 @@ const { getMessaging } =require("firebase-admin/messaging");
 const serverKey = 'AAAA4zxFWx4:APA91bHtA8m3hXdBsBGHSkHnpzI4aFSFmplU_PP3MCFPs24NFeP-aFaED0cxtTvWZ6NyGW1K6qYlIpNEo_8nrA4y693wFCYM86zQ4EiNzPvwo0C46BJSpGsJZDlrMVMBLw6Wh_CiQ1T7'; // Replace with your FCM server key
 const { formatDatetime, getCurrentDatetime } = require('./datetimeUtils');
 const tokenModel = require('./model/token')
-
+let messageCounter = 0;
 
 app.post('/firebase/notification/all', async (req, res) => {
   try {
@@ -68,7 +68,8 @@ app.post('/firebase/notification/all', async (req, res) => {
     const options = notification_options;
     const star = req.body.star;
     const feedback = req.body.feedback;
-
+    
+    
     const payload = {
       data: {
         message: message,
@@ -119,6 +120,7 @@ app.post('/firebase/notification', (req, res) => {
   const options = notification_options;
   const star = req.body.star;
   const feedback = req.body.feedback;
+  const badge = ++messageCounter;
 
   const payload = {
     data: {
@@ -126,24 +128,15 @@ app.post('/firebase/notification', (req, res) => {
       datetime: datetime, // Include datetime in data
       star:star,
       feedback:JSON.stringify(feedback),
+      
     },
     notification: {
       title: title,
       body: body,
+      sound:"iphone_notification.aiff"
     },
-    apns: {
-      payload: {
-        aps: {
-          contentAvailable: true,
-          badge: badge, // this one here
-          sound: "iphone_notification.aiff",
-          },
-        },
-      },
-      android: {
-      priority: "high",
-      },
   };
+
 
   // Check if the payload has either "data" or "notification" property
   if (!payload.data && !payload.notification) {
@@ -155,14 +148,14 @@ app.post('/firebase/notification', (req, res) => {
       console.log('Notification sent successfully:', response);
       res.status(200).json({
         message: "Notification sent successfully",
-        payload: payload,
+        // payload: payload,
       });
     })
     .catch(error => {
       console.error('Error sending notification:', error);
       res.status(500).json({
         error: "Error sending notification",
-        payload: payload,
+        // payload: payload,
       });
     });
 });
