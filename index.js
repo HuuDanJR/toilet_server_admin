@@ -131,6 +131,18 @@ app.post('/firebase/notification', (req, res) => {
       title: title,
       body: body,
     },
+    apns: {
+      payload: {
+        aps: {
+          contentAvailable: true,
+          badge: badge, // this one here
+          sound: "iphone_notification.aiff",
+          },
+        },
+      },
+      android: {
+      priority: "high",
+      },
   };
 
   // Check if the payload has either "data" or "notification" property
@@ -141,11 +153,17 @@ app.post('/firebase/notification', (req, res) => {
   admin.admin_role.messaging().sendToDevice(registrationToken, payload, options)
     .then(response => {
       console.log('Notification sent successfully:', response);
-      res.status(200).send("Notification sent successfully");
+      res.status(200).json({
+        message: "Notification sent successfully",
+        payload: payload,
+      });
     })
     .catch(error => {
       console.error('Error sending notification:', error);
-      res.status(500).send("Error sending notification");
+      res.status(500).json({
+        error: "Error sending notification",
+        payload: payload,
+      });
     });
 });
 
@@ -370,12 +388,6 @@ app.get('/list_feedback', async (req, res) => {
       }
     });
 });
-
-
-
-
-
-
 
 
 function generateId(length) {
