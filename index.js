@@ -9,26 +9,37 @@ app.use(express.json());
 var crypto = require('crypto')
 const fs = require('fs');
 const bodyparser = require('body-parser');
-
+const Excel = require('exceljs');
 app.use(express.urlencoded({ extended: true }));
 app.use(bodyparser.json())
 const logStream = fs.createWriteStream('log.txt', { flags: 'a' });
+const functions = require('./functions')
 app.use(morgan('tiny'));
 app.use(morgan(':method :url :status :response-time ms - :res[content-length]', { stream: logStream }));
 app.use(cors({
   origin: '*'
 }));
 const axios = require('axios');
-
-
 app.use('/', router);
-var port = process.env.PORT || 8080;
+//USER APIs
+const userRoute = require('./APIs/user_api');
+app.use('/user',userRoute);
+//CHECKLIST APIs
+const checklistRoute = require('./APIs/checklist_api')
+app.use('/checklist',checklistRoute);
+
+
+
+var port = process.env.PORT || 8095;
 app.listen(port);
 console.log('app running at port toilet server: ' + port);
 
 //connect mongoDB
 var config = require('./config')
 config.connectDB()
+//APIs USERS
+
+
 
 //APIs home
 app.get('/', function (req, res) {
@@ -46,7 +57,7 @@ const notification_options = {
   priority: "high",
   timeToLive: 60 * 60 * 24
 };
-const { getMessaging } =require("firebase-admin/messaging");
+const { getMessaging } = require("firebase-admin/messaging");
 const serverKey = 'AAAA4zxFWx4:APA91bHtA8m3hXdBsBGHSkHnpzI4aFSFmplU_PP3MCFPs24NFeP-aFaED0cxtTvWZ6NyGW1K6qYlIpNEo_8nrA4y693wFCYM86zQ4EiNzPvwo0C46BJSpGsJZDlrMVMBLw6Wh_CiQ1T7'; // Replace with your FCM server key
 const { formatDatetime, getCurrentDatetime } = require('./datetimeUtils');
 const tokenModel = require('./model/token')
@@ -68,8 +79,7 @@ app.post('/firebase/notification/all', async (req, res) => {
     const options = notification_options;
     const star = req.body.star;
     const feedback = req.body.feedback;
-    
-    
+
     const payload = {
       data: {
         message: message,
@@ -116,7 +126,7 @@ app.post('/firebase/notification', (req, res) => {
   const title = req.body.title || 'Default Title'; // Default title if not provided
   const body = req.body.body || 'Default Body'; // Default body if not provided
   const data = req.body.data || {}; // Default empty object for data
-  const datetime =  getCurrentDatetime(); // Format or use current datetime if not provided
+  const datetime = getCurrentDatetime(); // Format or use current datetime if not provided
   const options = notification_options;
   const star = req.body.star;
   const feedback = req.body.feedback;
@@ -126,14 +136,13 @@ app.post('/firebase/notification', (req, res) => {
     data: {
       message: message,
       datetime: datetime, // Include datetime in data
-      star:star,
-      feedback:JSON.stringify(feedback),
-      
+      star: star,
+      feedback: JSON.stringify(feedback),
     },
     notification: {
       title: title,
       body: body,
-      sound:"iphone_notification.aiff"
+      sound: "iphone_notification.aiff"
     },
   };
 
@@ -209,7 +218,7 @@ app.post('/firebase/notification2', async (req, res) => {
 
 app.post("/send", function (req, res) {
   const receivedToken = req.body.fcmToken;
-  
+
   const message = {
     notification: {
       title: "Notif",
@@ -217,7 +226,7 @@ app.post("/send", function (req, res) {
     },
     token: "YOUR FCM TOKEN HERE",
   };
-  
+
   getMessaging()
     .send(message)
     .then((response) => {
@@ -272,7 +281,8 @@ app.post("/send", function (req, res) {
 
 
 
-const feedbackModel = require('./model/feedback')
+const feedbackModel = require('./model/feedback');
+const feedbackModel2 = require('./model/feedback_w_status')
 // //create feedback
 app.post('/create_feedback', async (req, res) => {
   const id_string = generateId(4);
@@ -383,6 +393,83 @@ app.get('/list_feedback', async (req, res) => {
 });
 
 
+//LIST APP FEEDBACK WITH STATUS 
+app.get('/list_feedback_status', async (req, res) => {
+  feedbackModel2.find({})
+    .sort({ createdAt: -1 }) // Sort by createdAt in descending order
+    .limit(15) // Limit the results to 15 records
+    .exec(function (err, data) {
+      if (err) {
+        console.log(err);
+        res.status(500).send({ "status": false, "message": "An error occurred " });
+      } else {
+        if (data == null || data.length == 0) {
+          res.send({ "status": false, "message": "find list feedback with status fail", "totalResult": null, "data": data });
+        } else {
+          res.send({ "status": true, "message": "find list feedback with status success", "totalResult": data.length, "data": data });
+        }
+      }
+    });
+});
+//CREATE APP FEEDBACK WITH STATUS
+app.post('/create_feedback_status', async (req, res) => {
+  const id_string = generateId(8);
+  try {
+    let feedback = new feedbackModel2({
+      "id": id_string,
+      "driver": req.body.driver,
+      "star": req.body.star,
+      "content": req.body.content,
+      "experience": req.body.experience,
+      "createdAt": req.body.createdAt,
+      "isprocess": req.body.isprocess,
+      "processcreateAt": req.body.processcreateAt
+    });
+    feedbackModel2.findOne({ id: feedback.id }, async function (err, data) {
+      if (err) {
+        console.log(err);
+      }
+      else {
+        if (data != null) {
+          res.send({ "status": false, "message": "fail create feedback", "data": null });
+        } else {
+          feedback.save(function (err, data) {
+            if (err) {
+              console.log(err)
+            } else {
+              console.log(err)
+            }
+          });
+          res.send({ "status": true, "message": 'Created feedback, Thank You. ! ', "data": feedback });
+        }
+      }
+    });
+  } catch (error) {
+    res.status(500).send({ message: `error ${message} ${error}` });
+  }
+});
+
+// UPDATE FEEDBACK (isprocess and processcreateAt)
+app.post('/update_feedback_status', async (req, res) => {
+  try {
+    const existingFeedback = await feedbackModel2.findOne({id:req.body.id});
+    if (!existingFeedback) {
+      return res.status(404).send({ "status": false, "message": "Feedback not found", "data": null });
+    }
+    if (req.body.isprocess !== undefined) {
+      existingFeedback.isprocess = req.body.isprocess;
+    }
+    existingFeedback.processcreateAt = new Date();
+    // Save the updated feedback
+    await existingFeedback.save();
+
+    return res.send({ "status": true, "message": 'Feedback was comfirmed successfully!', "data": existingFeedback });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).send({ "status": false, "message": "Internal Server Error", "data": null });
+  }
+});
+
 function generateId(length) {
   const id = crypto.randomBytes(length).toString('hex');
   return typeof id === 'string' ? id : '';
@@ -438,52 +525,6 @@ app.post('/get_trip_by_id', async (req, res) => {
 
 
 
-function generateRandomString(length) {
-  let result = '';
-  const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-  const charactersLength = characters.length;
-  for (let i = 0; i < length; i++) {
-    result += characters.charAt(Math.floor(Math.random() * charactersLength));
-  }
-  return result;
-}
-
-
-function getFormattedTimestamp() {
-  const timestamp = new Date().getTime(); // Get current timestamp
-  // Format the timestamp
-  const dateObj = new Date(timestamp);
-  const year = dateObj.getFullYear();
-  const month = String(dateObj.getMonth() + 1).padStart(2, '0');
-  const day = String(dateObj.getDate()).padStart(4, '0');
-  const hours = String(dateObj.getHours()).padStart(2, '0');
-  const minutes = String(dateObj.getMinutes()).padStart(2, '0');
-
-  // Create formatted timestamp string
-  const formattedTimestamp = `${day}-${month}-${year}_${hours}-${minutes}`;
-  return formattedTimestamp;
-}
-
-
-function removeEmptyStringsFromArray(arr) {
-  if (!Array.isArray(arr)) {
-    throw new Error('Input is not an array.');
-  }
-
-  return arr.filter(item => typeof item === 'string' && item !== "" && item !== null);
-}
-function replaceEmptyStrings(arr, replacement) {
-  if (!Array.isArray(arr)) {
-    throw new Error('Input is not an array.');
-  }
-
-  return arr.map(item => {
-    if (typeof item === 'string' && item.trim() === "") {
-      return replacement;
-    }
-    return item;
-  });
-}
 
 
 app.get('/list_token', async (req, res) => {
@@ -527,5 +568,86 @@ app.post('/add_token', async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ "status": false, "message": "Failed to add token", "error": error.message });
+  }
+});
+
+
+
+
+
+
+
+
+
+
+//EXPORT FEEDBACK
+app.get('/export_feedback_all', async (req, res) => {
+  const workbook = new Excel.Workbook();
+  const sheet = workbook.addWorksheet('Sheet1');
+  sheet.addRow(["#", "ID", "RATING STAR", "CONTENT","FEEDBACK", "DATETIME","IS_PROCESSED","PROCRESS DATETIME"]);
+  try {
+    const data = await feedbackModel2.find();
+    if (!data || data.length === 0) {
+      return res.status(404).json({
+        status: false,
+        message: 'No feedback found',
+        totalResult: 0,
+        data: null,
+      });
+    }
+    
+    data.forEach((item, index) => {
+      sheet.addRow([index + 1, item.id, item.star,item.content, item.experience, item.createdAt.toLocaleString(),item.isprocess,item.processcreateAt.toLocaleString()]);
+    });
+    const formattedTimestamp = functions.getFormattedTimestamp();
+    const randomString = functions.generateRandomString(3); 
+    const excelFileName = `feedback_history_${formattedTimestamp}_${randomString}.xlsx`; // Generate a unique file name
+    const excelFolderPath = 'public/excel'; // Replace with your desired folder path for saving the Excel file
+    if (!fs.existsSync(excelFolderPath)) {
+      fs.mkdirSync(excelFolderPath, { recursive: true });
+    }
+    const excelFilePath = path.join(excelFolderPath, excelFileName); // Use an absolute path for the file path
+    workbook.xlsx.writeFile(excelFilePath)
+      .then(() => {
+        console.log(`Excel file was saved at: ${excelFilePath}`); // Log the file location
+        res.send({ "status": true, "message": "Feedback Excel file generated and saved on server", "filePath": excelFileName });
+      })
+      .catch((err) => {
+        console.error(err);
+        res.send({ "status": false, "message": "Failed to generate feedback excel file", "filePath": null });
+      });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({
+      status: false,
+      message: 'Failed to retrieve & export feedback data',
+      totalResult: null,
+      data: null,
+    });
+  }
+});
+
+//DOWNLOAD FEEDBACK
+app.get('/download_excel/:fileName', (req, res) => {
+  const fileName = req.params.fileName;
+  const excelFolderPath = 'public/excel'; // Replace with your folder path
+  // Create the full path to the Excel file
+  const excelFilePath = path.join(excelFolderPath, fileName);
+  // Check if the file exists
+  if (fs.existsSync(excelFilePath)) {
+    // Set the response headers to specify the file type and attachment
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename=${fileName}`);
+    // Create a read stream to send the file content to the response
+    const fileStream = fs.createReadStream(excelFilePath);
+    console.log(`Downloading file: ${fileName}`);
+    fileStream.pipe(res);
+    fileStream.on('end', () => {
+      console.log(`Downloaded file: ${fileName}`);
+    });
+  } else {
+    // If the file does not exist, send a 404 response
+    console.log(`File not found: ${fileName}`);
+    res.status(404).send('File not found');
   }
 });
