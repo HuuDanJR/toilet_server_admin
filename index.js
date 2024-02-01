@@ -27,6 +27,16 @@ app.use('/user',userRoute);
 //CHECKLIST APIs
 const checklistRoute = require('./APIs/checklist_api')
 app.use('/checklist',checklistRoute);
+//ACCOUNT APIs
+const accountRoute = require('./APIs/account_api');
+app.use('/account',accountRoute);
+
+//UPLOAD FILES
+const upload_service = require('./uploads/upload_service');
+app.post("/upload_photo", upload_service.uploadFiles);
+app.get('/files', upload_service.getListFiles);
+app.get("/files/:name", upload_service.download);
+
 
 
 

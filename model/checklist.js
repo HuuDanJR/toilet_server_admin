@@ -1,4 +1,6 @@
 var mongoose = require('mongoose');
+const moment = require('moment-timezone');
+
 
 const { ObjectId } = mongoose.Types;
 
@@ -20,11 +22,11 @@ const CheckListSchema = new mongoose.Schema({
         required:true,default:false,type:Boolean
     },
     createdAt: {
-        default: Date.now(),
-        type: Date,
+        default: () => moment().tz("Asia/Bangkok").toLocaleString(),//correct
+        required:true,type:String,
     },
     updateAt:{
-        default: Date.now(),
+        default: () => moment().tz('Asia/Singapore'), 
         type: Date,
     }
 
