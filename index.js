@@ -21,15 +21,18 @@ app.use(cors({
 }));
 const axios = require('axios');
 app.use('/', router);
+//static folder
+const staticFolder = require('./static/static_display');
+app.use('/static', staticFolder);
 //USER APIs
 const userRoute = require('./APIs/user_api');
-app.use('/user',userRoute);
+app.use('/user', userRoute);
 //CHECKLIST APIs
 const checklistRoute = require('./APIs/checklist_api')
-app.use('/checklist',checklistRoute);
+app.use('/checklist', checklistRoute);
 //ACCOUNT APIs
 const accountRoute = require('./APIs/account_api');
-app.use('/account',accountRoute);
+app.use('/account', accountRoute);
 
 //UPLOAD FILES
 const upload_service = require('./uploads/upload_service');
@@ -50,15 +53,14 @@ config.connectDB()
 //APIs USERS
 
 
+// Serve static files for both web1 and web2 directories
+app.use(express.static('./public-flutter'));
+app.use(express.static('./public-flutter/assets'));
 
-//APIs home
-app.get('/', function (req, res) {
-  res.end('index page - toilet server');
-})
-
-//WEB RESOURCE
-app.use(express.static('web/web'));
-app.use(express.static('web/web/assets'));
+// Define route handlers
+router.get('/', (request, response) => {
+  response.sendFile(path.join(__dirname, 'public-flutter', 'index.html'));
+});
 
 
 //FIREBASE 
@@ -401,6 +403,9 @@ app.get('/list_feedback', async (req, res) => {
       }
     });
 });
+app.get('/call_service', async (req, res) => {
+  res.send({ "status": true, "message": "call_service", });
+});
 
 
 //LIST APP FEEDBACK WITH STATUS 
@@ -462,7 +467,7 @@ app.post('/create_feedback_status', async (req, res) => {
 // UPDATE FEEDBACK (isprocess and processcreateAt)
 app.post('/update_feedback_status', async (req, res) => {
   try {
-    const existingFeedback = await feedbackModel2.findOne({id:req.body.id});
+    const existingFeedback = await feedbackModel2.findOne({ id: req.body.id });
     if (!existingFeedback) {
       return res.status(404).send({ "status": false, "message": "Feedback not found", "data": null });
     }
@@ -594,7 +599,7 @@ app.post('/add_token', async (req, res) => {
 app.get('/export_feedback_all', async (req, res) => {
   const workbook = new Excel.Workbook();
   const sheet = workbook.addWorksheet('Sheet1');
-  sheet.addRow(["#", "ID", "RATING STAR", "CONTENT","FEEDBACK", "DATETIME","IS_PROCESSED","PROCRESS DATETIME"]);
+  sheet.addRow(["#", "ID", "RATING STAR", "CONTENT", "FEEDBACK", "DATETIME", "IS_PROCESSED", "PROCRESS DATETIME"]);
   try {
     const data = await feedbackModel2.find();
     if (!data || data.length === 0) {
@@ -605,12 +610,12 @@ app.get('/export_feedback_all', async (req, res) => {
         data: null,
       });
     }
-    
+
     data.forEach((item, index) => {
-      sheet.addRow([index + 1, item.id, item.star,item.content, item.experience, item.createdAt.toLocaleString(),item.isprocess,item.processcreateAt.toLocaleString()]);
+      sheet.addRow([index + 1, item.id, item.star, item.content, item.experience, item.createdAt.toLocaleString(), item.isprocess, item.processcreateAt.toLocaleString()]);
     });
     const formattedTimestamp = functions.getFormattedTimestamp();
-    const randomString = functions.generateRandomString(3); 
+    const randomString = functions.generateRandomString(3);
     const excelFileName = `feedback_history_${formattedTimestamp}_${randomString}.xlsx`; // Generate a unique file name
     const excelFolderPath = 'public/excel'; // Replace with your desired folder path for saving the Excel file
     if (!fs.existsSync(excelFolderPath)) {
